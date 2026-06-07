@@ -6,17 +6,25 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ali-baba-mobile",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0B1426"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.alibaba.fortytreausres"
     },
-    "android": {},
+    "android": {
+      "package": "com.alibaba.fortytreasures",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0B1426"
+      },
+      "permissions": []
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -33,6 +41,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }
