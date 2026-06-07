@@ -1,0 +1,2 @@
+- [Expo workflow port detection](expo-workflow-fix.md) — remove `ensurePreviewReachable` from artifact.toml for Expo apps; Metro doesn't serve HTTP at custom paths.
+- [Bearer token auth for React Native](rn-auth-pattern.md) — use in-memory tokenStore + Bearer header instead of cookies; cookies are unreliable in Expo/React Native.

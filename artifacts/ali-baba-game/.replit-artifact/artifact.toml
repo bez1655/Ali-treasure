@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "АЛИ-БАБА И 40 КЛАДОВ"
+version = "1.0.0"
+id = "artifacts/ali-baba-game"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20049
+
+[services.development]
+run = "pnpm --filter @workspace/ali-baba-game run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ali-baba-game", "run", "build" ]
+publicDir = "artifacts/ali-baba-game/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20049"
+BASE_PATH = "/"

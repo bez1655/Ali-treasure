@@ -1,0 +1,14 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "2KRIpIAmrB7FWbYH7lI93"
+uri = "file://artifacts/ali-baba-mobile/assets/images/icon.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Hl3-3tvb0adGQ8gprKFyh"
+uri = "file://artifacts/ali-baba-mobile/assets/images/game-board-bg.png"
+type = "image"
+title = "generated_image"
