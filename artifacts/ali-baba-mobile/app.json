@@ -42,9 +42,10 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "bez1655",
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "bd8d37ef-b99b-4fe8-97d9-fcd15b969f56"
       }
     }
   }
