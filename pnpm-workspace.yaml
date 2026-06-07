@@ -158,3 +158,17 @@ overrides:
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
   esbuild: "0.27.3"
+  # Security vulnerability fixes (transitive dependency overrides)
+  # Use version-range selectors so we only patch the vulnerable major lines
+  # and do NOT downgrade packages that legitimately use newer major versions.
+  node-forge: ">=1.4.0"
+  "minimatch@5": "5.1.9"
+  tar: "^7.5.11"
+  "@xmldom/xmldom": ">=0.8.13"
+  ajv: "^8.18.0"
+  yaml: "^2.8.3"
+  postcss: "^8.5.10"
+  # uuid@v4-style named exports (v4(), v1(), etc.) work in v11+; eas-cli confirmed compatible
+  uuid: "11.1.1"
+  qs: "^6.15.2"
+  diff: ">=8.0.3"
