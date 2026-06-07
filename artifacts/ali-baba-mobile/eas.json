@@ -9,7 +9,10 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_DOMAIN": "6de05fd2-2003-4b55-a8f5-8f4605576602-00-2xp3rz2tqtfac.kirk.replit.dev"
+      }
     },
     "production": {
       "android": {
