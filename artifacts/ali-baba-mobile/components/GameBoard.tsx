@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import {
   View,
   Image,
@@ -6,12 +6,11 @@ import {
   Animated,
   Text,
   Dimensions,
+  Easing,
 } from "react-native";
 
 const BOARD_IMAGE = require("../assets/images/board.png");
 
-// Positions as [x%, y%] from top-left of the board image (0-100)
-// Traced from the actual game board image
 const CELL_POSITIONS: [number, number][] = [
   [0, 0],     // 0 unused
   [50, 90],   // 1  START
@@ -92,48 +91,128 @@ interface TokenProps {
   offsetIndex: number;
 }
 
+const STEP_DURATION = 160;   // ms per cell step
+const BOUNCE_HEIGHT = 18;    // px — how high the token hops
+
+function getXY(cell: number, bw: number, bh: number, offsetIndex: number, tokenSize: number) {
+  const pos = CELL_POSITIONS[Math.max(1, Math.min(60, cell))] ?? CELL_POSITIONS[1];
+  return {
+    x: (pos[0] / 100) * bw + offsetIndex * 6 - tokenSize / 2,
+    y: (pos[1] / 100) * bh + offsetIndex * 6 - tokenSize / 2,
+  };
+}
+
 function PlayerToken({ player, boardWidth, boardHeight, offsetIndex }: TokenProps) {
-  const pos = CELL_POSITIONS[player.position] ?? CELL_POSITIONS[1];
-  const xPct = pos[0] / 100;
-  const yPct = pos[1] / 100;
+  const TOKEN_SIZE = 24;
+  const prevPositionRef = useRef(player.position);
+  const isAnimatingRef = useRef(false);
 
-  const TOKEN_SIZE = 22;
-  const OFFSET_STEP = 6;
+  const { x: initX, y: initY } = getXY(player.position, boardWidth, boardHeight, offsetIndex, TOKEN_SIZE);
 
-  const animX = useRef(new Animated.Value(xPct * boardWidth)).current;
-  const animY = useRef(new Animated.Value(yPct * boardHeight)).current;
+  const animX = useRef(new Animated.Value(initX)).current;
+  const animY = useRef(new Animated.Value(initY)).current;
+  const animZ = useRef(new Animated.Value(0)).current;   // vertical hop (translateY offset)
   const pulse = useRef(new Animated.Value(1)).current;
+  const glow = useRef(new Animated.Value(0)).current;
 
+  // Step-by-step movement animation
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(animX, {
-        toValue: xPct * boardWidth + offsetIndex * OFFSET_STEP,
-        useNativeDriver: true,
-        tension: 60,
-        friction: 8,
-      }),
-      Animated.spring(animY, {
-        toValue: yPct * boardHeight + offsetIndex * OFFSET_STEP,
-        useNativeDriver: true,
-        tension: 60,
-        friction: 8,
-      }),
-    ]).start();
+    const newPos = player.position;
+    const oldPos = prevPositionRef.current;
+
+    if (newPos === oldPos || isAnimatingRef.current) return;
+    if (boardWidth === 0) return;
+
+    isAnimatingRef.current = true;
+    prevPositionRef.current = newPos;
+
+    const steps = newPos > oldPos
+      ? Array.from({ length: newPos - oldPos }, (_, i) => oldPos + i + 1)
+      : [newPos];
+
+    const animations: Animated.CompositeAnimation[] = [];
+
+    for (let i = 0; i < steps.length; i++) {
+      const cell = steps[i];
+      const { x, y } = getXY(cell, boardWidth, boardHeight, offsetIndex, TOKEN_SIZE);
+      const isLast = i === steps.length - 1;
+
+      // Hop up then land on each cell
+      animations.push(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(animZ, {
+              toValue: -BOUNCE_HEIGHT,
+              duration: STEP_DURATION * 0.45,
+              easing: Easing.out(Easing.quad),
+              useNativeDriver: true,
+            }),
+            Animated.timing(animZ, {
+              toValue: 0,
+              duration: STEP_DURATION * 0.55,
+              easing: Easing.in(Easing.bounce),
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.timing(animX, {
+            toValue: x,
+            duration: STEP_DURATION,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(animY, {
+            toValue: y,
+            duration: STEP_DURATION,
+            easing: Easing.inOut(Easing.quad),
+            useNativeDriver: true,
+          }),
+          // Scale up slightly during hop
+          ...(isLast
+            ? [Animated.sequence([
+                Animated.timing(pulse, { toValue: 1.5, duration: STEP_DURATION * 0.4, useNativeDriver: true }),
+                Animated.spring(pulse, { toValue: 1, useNativeDriver: true, tension: 200, friction: 5 }),
+              ])]
+            : [Animated.sequence([
+                Animated.timing(pulse, { toValue: 1.2, duration: STEP_DURATION * 0.5, useNativeDriver: true }),
+                Animated.timing(pulse, { toValue: 1.0, duration: STEP_DURATION * 0.5, useNativeDriver: true }),
+              ])]),
+        ])
+      );
+    }
+
+    // Flash glow on arrival
+    const glowAnim = Animated.sequence([
+      Animated.timing(glow, { toValue: 1, duration: 120, useNativeDriver: false }),
+      Animated.timing(glow, { toValue: 0, duration: 400, useNativeDriver: false }),
+    ]);
+
+    Animated.sequence(animations).start(() => {
+      glowAnim.start();
+      isAnimatingRef.current = false;
+    });
   }, [player.position, boardWidth, boardHeight]);
 
+  // Pulse when it's this player's turn
   useEffect(() => {
     if (player.canMove) {
-      Animated.loop(
+      const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulse, { toValue: 1.4, duration: 400, useNativeDriver: true }),
-          Animated.timing(pulse, { toValue: 1.0, duration: 400, useNativeDriver: true }),
-        ]),
-      ).start();
+          Animated.timing(pulse, { toValue: 1.35, duration: 420, useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 1.0, duration: 420, useNativeDriver: true }),
+        ])
+      );
+      loop.start();
+      return () => loop.stop();
     } else {
       pulse.stopAnimation();
-      pulse.setValue(1);
+      Animated.timing(pulse, { toValue: 1, duration: 150, useNativeDriver: true }).start();
     }
   }, [player.canMove]);
+
+  const glowColor = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(255,255,255,0)", "rgba(255,255,255,0.95)"],
+  });
 
   return (
     <Animated.View
@@ -145,22 +224,31 @@ function PlayerToken({ player, boardWidth, boardHeight, offsetIndex }: TokenProp
           borderRadius: TOKEN_SIZE / 2,
           backgroundColor: player.color,
           position: "absolute",
-          left: -TOKEN_SIZE / 2,
-          top: -TOKEN_SIZE / 2,
+          left: 0,
+          top: 0,
           transform: [
             { translateX: animX },
             { translateY: animY },
+            { translateY: animZ },
             { scale: pulse },
           ],
-          borderWidth: player.canMove ? 2 : 1,
-          borderColor: player.canMove ? "#FFFFFF" : "rgba(0,0,0,0.4)",
-          shadowColor: player.canMove ? "#FFF" : "#000",
-          shadowOpacity: player.canMove ? 0.9 : 0.3,
-          shadowRadius: player.canMove ? 6 : 2,
-          elevation: player.canMove ? 8 : 3,
+          borderWidth: player.canMove ? 2.5 : 1.5,
+          borderColor: player.canMove ? "#FFFFFF" : "rgba(255,255,255,0.25)",
+          shadowColor: player.color,
+          shadowOpacity: 0.8,
+          shadowRadius: player.canMove ? 8 : 3,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: player.canMove ? 10 : 4,
         },
       ]}
     >
+      {/* Glow flash on landing */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          { borderRadius: TOKEN_SIZE / 2, backgroundColor: glowColor },
+        ]}
+      />
       <Text style={styles.tokenText}>{player.username.charAt(0).toUpperCase()}</Text>
     </Animated.View>
   );
@@ -173,13 +261,12 @@ interface GameBoardProps {
 export default function GameBoard({ players }: GameBoardProps) {
   const screenWidth = Dimensions.get("window").width;
   const boardWidth = screenWidth - 16;
-  const boardHeight = boardWidth; // square board
+  const boardHeight = boardWidth;
 
   const playersByCell: Record<number, GamePlayer[]> = {};
   for (const p of players) {
-    const pos = p.position;
-    if (!playersByCell[pos]) playersByCell[pos] = [];
-    playersByCell[pos].push(p);
+    if (!playersByCell[p.position]) playersByCell[p.position] = [];
+    playersByCell[p.position].push(p);
   }
 
   return (
@@ -189,7 +276,7 @@ export default function GameBoard({ players }: GameBoardProps) {
         style={[styles.boardImage, { width: boardWidth, height: boardHeight }]}
         resizeMode="cover"
       />
-      {players.map((player, idx) => {
+      {players.map((player) => {
         const cellPlayers = playersByCell[player.position] ?? [];
         const offsetIndex = cellPlayers.indexOf(player);
         return (
@@ -224,8 +311,11 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   tokenText: {
-    color: "#000",
-    fontSize: 10,
+    color: "#fff",
+    fontSize: 11,
     fontWeight: "bold",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
