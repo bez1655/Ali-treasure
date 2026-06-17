@@ -1,40 +1,62 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SocketProvider } from "@/contexts/SocketContext";
+import LoginPage from "@/pages/login";
+import RoomsPage from "@/pages/rooms";
+import RoomPage from "@/pages/room";
 
 const queryClient = new QueryClient();
 
-function Home() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Replit Agent is building...</h1>
-        <p className="mt-2 text-sm text-gray-600">Your app will appear here once it's ready.</p>
-      </div>
+function ProtectedRoute({ component: Component, ...props }: { component: React.ComponentType<any>; [k: string]: any }) {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return (
+    <div style={{ minHeight: "100vh", backgroundColor: "#0B1426", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ fontSize: 32, color: "#D4A017" }}>⏳</div>
     </div>
   );
+  if (!user) return <Redirect to="/login" />;
+  return <Component {...props} />;
 }
 
-function Router() {
+function AuthRoute() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (user) return <Redirect to="/rooms" />;
+  return <LoginPage />;
+}
+
+function AppRoutes() {
+  const { token } = useAuth();
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route component={NotFound} />
-    </Switch>
+    <SocketProvider token={token}>
+      <Switch>
+        <Route path="/login" component={AuthRoute} />
+        <Route path="/rooms">
+          {() => <ProtectedRoute component={RoomsPage} />}
+        </Route>
+        <Route path="/room/:id">
+          {(params) => <ProtectedRoute component={RoomPage} roomId={Number(params.id)} />}
+        </Route>
+        <Route path="/">
+          {() => {
+            const { user } = useAuth();
+            return user ? <Redirect to="/rooms" /> : <Redirect to="/login" />;
+          }}
+        </Route>
+      </Switch>
+    </SocketProvider>
   );
 }
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
+      <AuthProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
+          <AppRoutes />
         </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
