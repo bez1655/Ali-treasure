@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import bcrypt from "bcrypt";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { LoginBody } from "@workspace/api-zod";
 import { createToken } from "../lib/tokenStore";
 
 const router: IRouter = Router();
@@ -15,19 +14,72 @@ declare module "express-session" {
   }
 }
 
+// Username rules:
+//  - admin: plain word, checked against existing accounts only
+//  - player: must start with @, auto-registered on first login
+function validatePlayerUsername(username: string): string | null {
+  if (!username.startsWith("@")) return "Логин игрока должен начинаться с @";
+  if (username.length < 2) return "Слишком короткий логин";
+  if (username.length > 33) return "Слишком длинный логин (макс. 32 символа)";
+  const name = username.slice(1);
+  if (!/^[a-zA-Z0-9_а-яА-ЯёЁ]+$/.test(name)) return "Логин может содержать буквы, цифры и _";
+  return null;
+}
+
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const parsed = LoginBody.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Неверные данные" });
+  const { username, password } = req.body as { username?: string; password?: string };
+
+  if (!username?.trim() || !password?.trim()) {
+    res.status(400).json({ error: "Введите логин и пароль" });
     return;
   }
 
-  const { username, password } = parsed.data;
+  const trimmed = username.trim();
+  const isPlayerLogin = trimmed.startsWith("@");
 
+  // ── PLAYER: auto-register on first login ─────────────────────────────────
+  if (isPlayerLogin) {
+    const err = validatePlayerUsername(trimmed);
+    if (err) {
+      res.status(400).json({ error: err });
+      return;
+    }
+
+    const [existing] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.username, trimmed));
+
+    if (!existing) {
+      // First time — create the account
+      const hash = await bcrypt.hash(password, 10);
+      const [newUser] = await db
+        .insert(usersTable)
+        .values({ username: trimmed, passwordHash: hash, role: "player" })
+        .returning();
+
+      const token = createToken(newUser.id, newUser.username, newUser.role);
+      res.json({ user: { id: newUser.id, username: newUser.username, role: newUser.role }, token });
+      return;
+    }
+
+    // Returning player — check password
+    const valid = await bcrypt.compare(password, existing.passwordHash);
+    if (!valid) {
+      res.status(401).json({ error: "Неверный пароль" });
+      return;
+    }
+
+    const token = createToken(existing.id, existing.username, existing.role);
+    res.json({ user: { id: existing.id, username: existing.username, role: existing.role }, token });
+    return;
+  }
+
+  // ── ADMIN: normal password check ─────────────────────────────────────────
   const [user] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.username, username));
+    .where(eq(usersTable.username, trimmed));
 
   if (!user) {
     res.status(401).json({ error: "Неверный логин или пароль" });
@@ -45,11 +97,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   req.session.role = user.role;
 
   const token = createToken(user.id, user.username, user.role);
-
-  res.json({
-    user: { id: user.id, username: user.username, role: user.role },
-    token,
-  });
+  res.json({ user: { id: user.id, username: user.username, role: user.role }, token });
 });
 
 router.get("/auth/me", async (req, res): Promise<void> => {

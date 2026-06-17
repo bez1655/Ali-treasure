@@ -7,11 +7,13 @@ export const roomsTable = pgTable("rooms", {
   name: text("name").notNull(),
   status: text("status", { enum: ["waiting", "active", "finished"] }).notNull().default("waiting"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
 });
 
 export const insertRoomSchema = createInsertSchema(roomsTable).omit({
   id: true,
   createdAt: true,
+  finishedAt: true,
   status: true,
 });
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
@@ -36,3 +38,21 @@ export const insertGamePlayerSchema = createInsertSchema(gamePlayersTable).omit(
 });
 export type InsertGamePlayer = z.infer<typeof insertGamePlayerSchema>;
 export type GamePlayer = typeof gamePlayersTable.$inferSelect;
+
+export const gameMovesTable = pgTable("game_moves", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => roomsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull(),
+  username: text("username").notNull(),
+  diceValue: integer("dice_value").notNull(),
+  fromPosition: integer("from_position").notNull(),
+  toPosition: integer("to_position").notNull(),
+  movedAt: timestamp("moved_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertGameMoveSchema = createInsertSchema(gameMovesTable).omit({
+  id: true,
+  movedAt: true,
+});
+export type InsertGameMove = z.infer<typeof insertGameMoveSchema>;
+export type GameMove = typeof gameMovesTable.$inferSelect;

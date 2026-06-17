@@ -10,6 +10,9 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [, navigate] = useLocation();
 
+  const isPlayer = username.startsWith("@");
+  const isAdmin = username.length > 0 && !username.startsWith("@");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) return;
@@ -26,8 +29,16 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#0B1426", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-      <div style={{ width: "100%", maxWidth: 400 }}>
+    <div style={{
+      minHeight: "100vh",
+      backgroundColor: "#0B1426",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+      backgroundImage: "radial-gradient(ellipse at 50% 0%, #1a2a4a 0%, #0B1426 70%)",
+    }}>
+      <div style={{ width: "100%", maxWidth: 420 }}>
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <img
@@ -40,28 +51,65 @@ export default function LoginPage() {
           <p style={{ fontSize: 14, color: "#A89060", margin: 0 }}>Добро пожаловать в игру!</p>
         </div>
 
+        {/* Hint cards */}
+        <div style={{ display: "flex", gap: 10, marginBottom: 24 }}>
+          <div style={{
+            flex: 1, backgroundColor: "#1A2744", border: "1px solid #2E4070",
+            borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#A89060", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 18, marginBottom: 4 }}>🎲</div>
+            <div style={{ fontWeight: 700, color: "#F0C040", marginBottom: 2 }}>Игрок</div>
+            <div>Логин: <span style={{ color: "#4ECDC4" }}>@ваш_ник</span></div>
+            <div style={{ marginTop: 2 }}>Первый вход = регистрация</div>
+          </div>
+          <div style={{
+            flex: 1, backgroundColor: "#1A2744", border: "1px solid #2E4070",
+            borderRadius: 10, padding: "10px 12px", fontSize: 12, color: "#A89060", textAlign: "center",
+          }}>
+            <div style={{ fontSize: 18, marginBottom: 4 }}>👑</div>
+            <div style={{ fontWeight: 700, color: "#D4A017", marginBottom: 2 }}>Администратор</div>
+            <div>Логин: <span style={{ color: "#D4A017" }}>admin</span></div>
+            <div style={{ marginTop: 2 }}>Управляет игрой</div>
+          </div>
+        </div>
+
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div>
             <label style={{ display: "block", fontSize: 13, color: "#A89060", fontWeight: 600, marginBottom: 6, letterSpacing: 1 }}>
               ЛОГИН
             </label>
-            <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
-              placeholder="Введите логин"
-              autoCapitalize="none"
-              autoCorrect="off"
-              style={{
-                width: "100%", boxSizing: "border-box",
-                backgroundColor: "#1A2744", border: "1px solid #2E4070",
-                borderRadius: 12, padding: "14px 16px",
-                fontSize: 16, color: "#F5E6C8",
-                outline: "none",
-              }}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="@ваш_ник или admin"
+                autoCapitalize="none"
+                autoCorrect="off"
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  backgroundColor: "#1A2744",
+                  border: `1px solid ${isPlayer ? "#4ECDC4" : isAdmin ? "#D4A017" : "#2E4070"}`,
+                  borderRadius: 12, padding: "14px 46px 14px 16px",
+                  fontSize: 16, color: "#F5E6C8", outline: "none",
+                  transition: "border-color 0.2s",
+                }}
+              />
+              {isPlayer && (
+                <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 18 }}>🎲</span>
+              )}
+              {isAdmin && (
+                <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontSize: 18 }}>👑</span>
+              )}
+            </div>
+            {isPlayer && (
+              <div style={{ fontSize: 11, color: "#4ECDC4", marginTop: 4, marginLeft: 4 }}>
+                Игрок — при первом входе аккаунт создаётся автоматически
+              </div>
+            )}
           </div>
+
           <div>
             <label style={{ display: "block", fontSize: 13, color: "#A89060", fontWeight: 600, marginBottom: 6, letterSpacing: 1 }}>
               ПАРОЛЬ
@@ -70,13 +118,12 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="Введите пароль"
+              placeholder="Придумайте или введите пароль"
               style={{
                 width: "100%", boxSizing: "border-box",
                 backgroundColor: "#1A2744", border: "1px solid #2E4070",
                 borderRadius: 12, padding: "14px 16px",
-                fontSize: 16, color: "#F5E6C8",
-                outline: "none",
+                fontSize: 16, color: "#F5E6C8", outline: "none",
               }}
             />
           </div>
@@ -97,10 +144,10 @@ export default function LoginPage() {
               color: "#0B1426", cursor: "pointer",
               boxShadow: "0 0 20px rgba(212,160,23,0.4)",
               opacity: (loading || !username.trim() || !password.trim()) ? 0.6 : 1,
-              marginTop: 8,
+              marginTop: 8, transition: "opacity 0.2s",
             }}
           >
-            {loading ? "Вход..." : "✨ Войти в игру"}
+            {loading ? "Вхожу..." : "✨ Войти в игру"}
           </button>
         </form>
       </div>
